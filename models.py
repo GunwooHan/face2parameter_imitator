@@ -1,5 +1,6 @@
 import os
 
+import kornia
 import cv2
 import pytorch_lightning as pl
 import torch
@@ -7,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from torch.optim import lr_scheduler
-
+import torch.nn.functional as F
 
 class UpsampleBN(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, activation="relu"):
@@ -107,31 +108,67 @@ class Generator(nn.Module):
         x = self.conv1(x)
         return x
 
-class Blur(nn.Module):
-    def __init__(self) -> None:
+
+class GaussianBlur(nn.Module):
+    def __init__(self, kernel_size):
         super().__init__()
-    
+        self.kernel_size=kernel_size
+
     def forward(self, tensor):
-        return
+        x = kornia.filters.gaussian_blur2d(tensor, kernel_size=self.kernel_size, sigma=(1, 1))
+        return x
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, downsample=False) -> None:
+    def __init__(self, in_channels, out_channels) -> None:
         super().__init__()
-        self.conv1 = 
+        self.conv1 = nn.Sequential(
+            nn.utils.parametrizations.spectral_norm(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)),
+            nn.LeakyReLU(0.2)
+        )
+        self.conv2 = nn.Sequential(
+            nn.utils.parametrizations.spectral_norm(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)),
+            GaussianBlur(kernel_size=(3, 3)),
+            nn.LeakyReLU(0.2)
+        )
+
+        self.skip = nn.Sequential(
+            nn.utils.parametrizations.spectral_norm(nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, bias=False)),
+        ) 
 
     def forward(self, tensor):
-        return 
+        x = self.conv1(tensor)
+        x = self.conv2(x)
 
+        skip = self.skip(tensor)
+        x = (x + skip) / (2 ** 0.5)
+        return x
 
 
 
 class Discriminator(nn.Module):
     def __init__(self) -> None:
         super().__init__()
+        self.model = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2),
+            ResBlock(64, 128),
+            ResBlock(128, 256),
+            ResBlock(256, 512),
+            ResBlock(512, 512),
+            ResBlock(512, 512),
+            ResBlock(512, 512),
+            ResBlock(512, 512),
+            nn.Flatten(start_dim=1),
+            nn.Linear(512 * 4 * 4, 512),
+            nn.LeakyReLU(0.2),
+            nn.Linear(512, 1),
+        )
+
 
     def forward(self, tensor):
-        return 
+        x = self.model(tensor)
+        return x
 
 class Imitator(pl.LightningModule):
     def __init__(self, args):
@@ -139,6 +176,7 @@ class Imitator(pl.LightningModule):
         self.args = args
         self.recon_loss = nn.L1Loss()
         self.generator = Generator(parameter_size=72)
+        self.discriminator = Discriminator()
 
     def forward(self, parameter):
         return self.model(parameter)
@@ -178,10 +216,6 @@ class Imitator(pl.LightningModule):
             self.logger.log_image(key='sample_images', images=[
                 result_grid], caption=[self.current_epoch + 1])
 
-            if self.current_epoch % 1 == 0:
-                torch.save(self.generator, os.path.join(
-                    'checkpoints', self.args.name, f'{self.current_epoch:03d}_G.pt'))
-
         total_loss = recon_loss * self.args.recon_weight
 
         self.log('val/recon_loss', recon_loss, on_step=True, on_epoch=True)
@@ -189,8 +223,13 @@ class Imitator(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    model = Generator(parameter_size=72)
+    # model = Generator(parameter_size=72)
 
-    tensor = torch.randn(1, 72)
-    output = model(tensor)
-    print(output.shape)
+    # tensor = torch.randn(1, 72)
+    # output = model(tensor)
+    # print(output.shape)
+
+    model = Discriminator()
+    inputs = torch.randn(2, 3, 512, 512)
+    outputs = model(inputs)
+    print(outputs.shape)

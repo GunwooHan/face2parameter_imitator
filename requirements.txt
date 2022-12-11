@@ -3,3 +3,4 @@ pandas
 scikit-learn
 wandb
 opencv-python
+kornia
