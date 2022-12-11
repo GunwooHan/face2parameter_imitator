@@ -76,15 +76,16 @@ if __name__ == '__main__':
         save_on_train_epoch_end=True
     )
 
-    trainer = pl.Trainer(gpus=args.gpus,
-                         precision=args.precision,
-                         max_epochs=args.epochs,
-                        #  strategy='ddp',
-                         #  limit_train_batches=1,
-                         #  log_every_n_steps=1,
-                         logger=wandb_logger,
-                         callbacks=[checkpoint_callback]
-                         )
+    trainer = pl.Trainer(accelerator="gpu",
+                        devices=args.gpus,
+                        precision=args.precision,
+                        max_epochs=args.epochs,
+                        strategy='ddp',
+                        #  limit_train_batches=1,
+                        #  log_every_n_steps=1,
+                        logger=wandb_logger,
+                        callbacks=[checkpoint_callback]
+                        )
 
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=valid_dataloader)
     wandb.finish()
