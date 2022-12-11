@@ -235,16 +235,10 @@ class Imitator(pl.LightningModule):
 
         if batch_idx == 0:
             sample_count = 4 if parameter.size(0) > 4 else parameter.size(0)
-            parameter = parameter[:sample_count]
+            generated_face_image = generated_face_image[:sample_count]
             face_image = face_image[:sample_count]
-
-            result_image = self.generator(parameter)
-
-            result_grid = torchvision.utils.make_grid(torch.cat(
-                [face_image, result_image]), nrow=sample_count).permute(1, 2, 0).cpu().numpy()
-            result_grid = cv2.cvtColor(result_grid, cv2.COLOR_BGR2RGB)
-            self.logger.log_image(key='sample_images', images=[
-                result_grid], caption=[self.current_epoch + 1])
+            result_grid = torchvision.utils.make_grid(torch.cat([face_image, generated_face_image]), nrow=sample_count).permute(1, 2, 0).cpu().numpy()
+            self.logger.log_image(key='sample_images', images=[result_grid], caption=[self.current_epoch + 1])
 
         total_loss = recon_loss * self.args.recon_weight
 
