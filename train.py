@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 
 import wandb
 from datasets import P2FDataset
-from models import Initiator
+from models import Imitator
 
 parser = argparse.ArgumentParser()
 
@@ -30,6 +30,7 @@ parser.add_argument('--learning_rate', type=float, default=0.01)
 parser.add_argument('--adam_beta', type=float, default=0)
 
 parser.add_argument('--recon_weight', type=float, default=1)
+parser.add_argument('--gan_weight', type=float, default=0.1)
 
 args = parser.parse_args()
 
@@ -62,7 +63,7 @@ if __name__ == '__main__':
                                                    #    shuffle=True,
                                                    drop_last=True)
 
-    model = Initiator(args)
+    model = Imitator(args)
 
     os.makedirs(os.path.join(args.checkpoints_dir, args.name), exist_ok=True)
     checkpoint_callback = ModelCheckpoint(
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(gpus=args.gpus,
                          precision=args.precision,
                          max_epochs=args.epochs,
-                         strategy='ddp',
+                        #  strategy='ddp',
                          #  limit_train_batches=1,
                          #  log_every_n_steps=1,
                          logger=wandb_logger,
