@@ -1,0 +1,5 @@
+pytorch-lightning
+pandas
+scikit-learn
+wandb
+opencv-python
