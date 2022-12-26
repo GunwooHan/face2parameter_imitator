@@ -69,11 +69,7 @@ if __name__ == '__main__':
     checkpoint_callback = ModelCheckpoint(
         dirpath=os.path.join(args.checkpoints_dir, args.name),
         verbose=True,
-        save_last=True,
-        save_top_k=3,
-        monitor='val/recon_loss',
-        mode='min',
-        save_on_train_epoch_end=True
+        every_n_epochs=1
     )
 
     trainer = pl.Trainer(accelerator="gpu",
